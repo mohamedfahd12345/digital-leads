@@ -125,10 +125,10 @@ var mongoClient *mongo.Client
 
 // Database and Collections
 const (
-	DatabaseName         = "grpc_crud_db"
-	ProductsCollection   = "products"
-	LeadsCollection      = "leads"
-	MongoURI            = "mongodb://localhost:27017"
+	DatabaseName       = "grpc_crud_db"
+	ProductsCollection = "products"
+	LeadsCollection    = "leads"
+	MongoURI           = "mongodb://localhost:27017"
 )
 
 // Service Implementation
@@ -163,12 +163,46 @@ func validateDataAgainstSchema(data map[string]interface{}, schema map[string]in
 		if err := validateFieldType(field, value, fieldType); err != nil {
 			return err
 		}
+
+		// If the field is an object and a nested schema is provided, validate recursively
+		if fieldType == "object" {
+			var nestedSchema map[string]interface{}
+			if ns, ok := fieldInfo["properties"].(map[string]interface{}); ok {
+				nestedSchema = ns
+			} else if ns, ok := fieldInfo["schema"].(map[string]interface{}); ok {
+				nestedSchema = ns
+			}
+
+			if nestedSchema != nil {
+				// Accept map[string]interface{} (JSON) or bson.M (Mongo)
+				var nestedData map[string]interface{}
+				if objMap, ok := value.(map[string]interface{}); ok {
+					nestedData = objMap
+				} else if bm, ok := value.(bson.M); ok {
+					nestedData = map[string]interface{}(bm)
+				} else {
+					return fmt.Errorf("field '%s' must be an object for nested validation", field)
+				}
+
+				if err := validateDataAgainstSchema(nestedData, nestedSchema); err != nil {
+					return fmt.Errorf("object field '%s' validation failed: %v", field, err)
+				}
+			}
+		}
 	}
 
 	return nil
 }
 
 func validateFieldType(fieldName string, value interface{}, expectedType string) error {
+	// Handle explicit nulls early
+	if value == nil {
+		if expectedType == "null" {
+			return nil
+		}
+		return fmt.Errorf("field '%s' must not be null", fieldName)
+	}
+
 	switch expectedType {
 	case "string":
 		if _, ok := value.(string); !ok {
@@ -177,11 +211,19 @@ func validateFieldType(fieldName string, value interface{}, expectedType string)
 	case "number":
 		switch value.(type) {
 		case int, int32, int64, float32, float64:
-			// Valid number types
+			// ok
 		default:
 			return fmt.Errorf("field '%s' must be a number", fieldName)
 		}
-	case "boolean":
+	case "double":
+		// JSON numbers decode to float64; also accept float32
+		switch value.(type) {
+		case float32, float64:
+			// ok
+		default:
+			return fmt.Errorf("field '%s' must be a double (floating-point)", fieldName)
+		}
+	case "boolean", "bool":
 		if _, ok := value.(bool); !ok {
 			return fmt.Errorf("field '%s' must be a boolean", fieldName)
 		}
@@ -193,8 +235,59 @@ func validateFieldType(fieldName string, value interface{}, expectedType string)
 		if _, ok := value.(map[string]interface{}); !ok {
 			return fmt.Errorf("field '%s' must be an object", fieldName)
 		}
+	case "null":
+		// Already handled by early check; reaching here means non-nil value
+		return fmt.Errorf("field '%s' must be null", fieldName)
+	case "date":
+		// Accept time.Time, primitive.DateTime, or ISO/RFC3339 strings
+		switch v := value.(type) {
+		case time.Time:
+			// ok
+		case primitive.DateTime:
+			// ok
+		case string:
+			if !isValidISODateString(v) {
+				return fmt.Errorf("field '%s' must be a valid ISO date string (e.g., RFC3339)", fieldName)
+			}
+		default:
+			return fmt.Errorf("field '%s' must be a date (time.Time, primitive.DateTime, or ISO string)", fieldName)
+		}
+	case "timestamp":
+		// Accept primitive.Timestamp, integer-like numbers, or numeric strings
+		switch v := value.(type) {
+		case primitive.Timestamp:
+			// ok
+		case int, int32, int64:
+			// ok
+		case float64, float32:
+			// ok (JSON numbers)
+		case string:
+			if _, err := strconv.ParseInt(v, 10, 64); err != nil {
+				return fmt.Errorf("field '%s' must be a numeric string representing a timestamp", fieldName)
+			}
+		default:
+			return fmt.Errorf("field '%s' must be a timestamp (integer, numeric string, or primitive.Timestamp)", fieldName)
+		}
 	}
 	return nil
+}
+
+// isValidISODateString validates common ISO-8601/RFC3339 date-time formats
+func isValidISODateString(s string) bool {
+	layouts := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04:05Z07:00",
+	}
+	for _, layout := range layouts {
+		if _, err := time.Parse(layout, s); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // Product CRUD Operations
@@ -773,19 +866,15 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	
+
 	// Register service (this would normally be done with generated proto code)
 	// For demonstration, we'll create a simple server setup
-	
+
 	log.Printf("gRPC server starting on :50051")
 	log.Printf("HTTP server running on :8080")
 	log.Printf("MongoDB connected to: %s", MongoURI)
 	log.Printf("Database: %s", DatabaseName)
 	log.Printf("Collections: %s, %s", ProductsCollection, LeadsCollection)
-	
-	
-
-
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
