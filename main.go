@@ -202,6 +202,36 @@ func validateDataAgainstSchema(data map[string]interface{}, schema map[string]in
 			}
 		}
 
+		// Additional constraints for number types
+		if fieldType == "number" || fieldType == "double" {
+			numVal, err := convertToFloat64(value)
+			if err != nil {
+				return fmt.Errorf("field '%s' must be a valid number", field)
+			}
+
+			// minimum validation
+			if minRaw, ok := fieldInfo["minimum"]; ok {
+				min, err := convertToFloat64(minRaw)
+				if err != nil {
+					return fmt.Errorf("invalid minimum for field '%s': must be a number", field)
+				}
+				if numVal < min {
+					return fmt.Errorf("field '%s' must be at least %v", field, min)
+				}
+			}
+
+			// maximum validation
+			if maxRaw, ok := fieldInfo["maximum"]; ok {
+				max, err := convertToFloat64(maxRaw)
+				if err != nil {
+					return fmt.Errorf("invalid maximum for field '%s': must be a number", field)
+				}
+				if numVal > max {
+					return fmt.Errorf("field '%s' must be at most %v", field, max)
+				}
+			}
+		}
+
 		// If the field is an object and a nested schema is provided, validate recursively
 		if fieldType == "object" {
 			var nestedSchema map[string]interface{}
@@ -308,6 +338,24 @@ func validateFieldType(fieldName string, value interface{}, expectedType string)
 		}
 	}
 	return nil
+}
+
+// Helper function to convert various numeric types to float64
+func convertToFloat64(value interface{}) (float64, error) {
+	switch v := value.(type) {
+	case int:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	case float32:
+		return float64(v), nil
+	case float64:
+		return v, nil
+	default:
+		return 0, fmt.Errorf("value is not a number")
+	}
 }
 
 // isValidISODateString validates common ISO-8601/RFC3339 date-time formats
