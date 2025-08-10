@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -162,6 +163,21 @@ func validateDataAgainstSchema(data map[string]interface{}, schema map[string]in
 		// Validate field type
 		if err := validateFieldType(field, value, fieldType); err != nil {
 			return err
+		}
+
+		// Additional constraints
+		// Pattern (for string types)
+		if fieldType == "string" {
+			if pattern, ok := fieldInfo["pattern"].(string); ok && pattern != "" {
+				strVal, _ := value.(string)
+				re, err := regexp.Compile(pattern)
+				if err != nil {
+					return fmt.Errorf("invalid pattern for field '%s': %v", field, err)
+				}
+				if !re.MatchString(strVal) {
+					return fmt.Errorf("field '%s' does not match required pattern", field)
+				}
+			}
 		}
 
 		// If the field is an object and a nested schema is provided, validate recursively
