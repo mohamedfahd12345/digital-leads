@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
@@ -165,17 +166,38 @@ func validateDataAgainstSchema(data map[string]interface{}, schema map[string]in
 			return err
 		}
 
-		// Additional constraints
-		// Pattern (for string types)
+		// Additional constraints for string types
 		if fieldType == "string" {
+			strVal, _ := value.(string)
+
+			// Pattern
 			if pattern, ok := fieldInfo["pattern"].(string); ok && pattern != "" {
-				strVal, _ := value.(string)
 				re, err := regexp.Compile(pattern)
 				if err != nil {
 					return fmt.Errorf("invalid pattern for field '%s': %v", field, err)
 				}
 				if !re.MatchString(strVal) {
 					return fmt.Errorf("field '%s' does not match required pattern", field)
+				}
+			}
+
+			// minLength / maxLength (use rune count for Unicode correctness)
+			if minRaw, ok := fieldInfo["minLength"]; ok {
+				min, ok := toInt(minRaw)
+				if !ok || min < 0 {
+					return fmt.Errorf("invalid minLength for field '%s': must be a non-negative integer", field)
+				}
+				if utf8.RuneCountInString(strVal) < min {
+					return fmt.Errorf("field '%s' length must be at least %d characters", field, min)
+				}
+			}
+			if maxRaw, ok := fieldInfo["maxLength"]; ok {
+				max, ok := toInt(maxRaw)
+				if !ok || max < 0 {
+					return fmt.Errorf("invalid maxLength for field '%s': must be a non-negative integer", field)
+				}
+				if utf8.RuneCountInString(strVal) > max {
+					return fmt.Errorf("field '%s' length must be at most %d characters", field, max)
 				}
 			}
 		}
@@ -304,6 +326,24 @@ func isValidISODateString(s string) bool {
 		}
 	}
 	return false
+}
+
+// toInt attempts to convert JSON-decoded numeric types to int
+func toInt(v interface{}) (int, bool) {
+	switch n := v.(type) {
+	case int:
+		return n, true
+	case int32:
+		return int(n), true
+	case int64:
+		return int(n), true
+	case float64:
+		return int(n), true
+	case float32:
+		return int(n), true
+	default:
+		return 0, false
+	}
 }
 
 // Product CRUD Operations
