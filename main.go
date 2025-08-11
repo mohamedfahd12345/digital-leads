@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -394,8 +395,153 @@ func toInt(v interface{}) (int, bool) {
 	}
 }
 
+// validateProductSchemaDefinition ensures the provided schema definition is structurally valid
+// and safe for MongoDB (e.g., field names cannot contain '.' or start with '$').
+func validateProductSchemaDefinition(schema map[string]interface{}) error {
+	if schema == nil {
+		return fmt.Errorf("schema must be an object")
+	}
+
+	// Allowed logical types (aligned with validateFieldType)
+	allowedTypes := map[string]bool{
+		"string":    true,
+		"number":    true,
+		"double":    true,
+		"boolean":   true,
+		"bool":      true,
+		"array":     true,
+		"object":    true,
+		"null":      true,
+		"date":      true,
+		"timestamp": true,
+	}
+
+	for fieldName, raw := range schema {
+		if err := validateMongoKey(fieldName); err != nil {
+			return err
+		}
+
+		fieldSchema, ok := raw.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("field '%s' schema must be an object", fieldName)
+		}
+
+		// type is required and must be allowed
+		typeRaw, ok := fieldSchema["type"]
+		if !ok {
+			return fmt.Errorf("field '%s' must specify a 'type'", fieldName)
+		}
+		typeStr, ok := typeRaw.(string)
+		if !ok {
+			return fmt.Errorf("field '%s' 'type' must be a string", fieldName)
+		}
+		typeStr = strings.ToLower(strings.TrimSpace(typeStr))
+		if !allowedTypes[typeStr] {
+			return fmt.Errorf("field '%s' has unsupported type '%s'", fieldName, typeStr)
+		}
+
+		// required must be boolean if present
+		if v, exists := fieldSchema["required"]; exists {
+			if _, ok := v.(bool); !ok {
+				return fmt.Errorf("field '%s' 'required' must be a boolean", fieldName)
+			}
+		}
+
+		// String constraints
+		if typeStr == "string" {
+			if v, ok := fieldSchema["pattern"]; ok {
+				pattern, ok := v.(string)
+				if !ok {
+					return fmt.Errorf("field '%s' 'pattern' must be a string", fieldName)
+				}
+				if _, err := regexp.Compile(pattern); err != nil {
+					return fmt.Errorf("field '%s' has invalid 'pattern': %v", fieldName, err)
+				}
+			}
+			if v, ok := fieldSchema["minLength"]; ok {
+				if _, ok := toInt(v); !ok {
+					return fmt.Errorf("field '%s' 'minLength' must be an integer", fieldName)
+				}
+			}
+			if v, ok := fieldSchema["maxLength"]; ok {
+				if _, ok := toInt(v); !ok {
+					return fmt.Errorf("field '%s' 'maxLength' must be an integer", fieldName)
+				}
+			}
+		} else {
+			// disallow string-only keywords on non-strings
+			if _, ok := fieldSchema["pattern"]; ok {
+				return fmt.Errorf("field '%s' 'pattern' is only allowed for type 'string'", fieldName)
+			}
+			if _, ok := fieldSchema["minLength"]; ok {
+				return fmt.Errorf("field '%s' 'minLength' is only allowed for type 'string'", fieldName)
+			}
+			if _, ok := fieldSchema["maxLength"]; ok {
+				return fmt.Errorf("field '%s' 'maxLength' is only allowed for type 'string'", fieldName)
+			}
+		}
+
+		// Numeric constraints
+		if typeStr == "number" || typeStr == "double" {
+			if v, ok := fieldSchema["minimum"]; ok {
+				if _, err := convertToFloat64(v); err != nil {
+					return fmt.Errorf("field '%s' 'minimum' must be a number", fieldName)
+				}
+			}
+			if v, ok := fieldSchema["maximum"]; ok {
+				if _, err := convertToFloat64(v); err != nil {
+					return fmt.Errorf("field '%s' 'maximum' must be a number", fieldName)
+				}
+			}
+		} else {
+			if _, ok := fieldSchema["minimum"]; ok {
+				return fmt.Errorf("field '%s' 'minimum' is only allowed for numeric types", fieldName)
+			}
+			if _, ok := fieldSchema["maximum"]; ok {
+				return fmt.Errorf("field '%s' 'maximum' is only allowed for numeric types", fieldName)
+			}
+		}
+
+		// Object recursive validation (either 'properties' or 'schema')
+		if typeStr == "object" {
+			if props, ok := fieldSchema["properties"].(map[string]interface{}); ok {
+				if err := validateProductSchemaDefinition(props); err != nil {
+					return fmt.Errorf("object field '%s' properties invalid: %v", fieldName, err)
+				}
+			} else if nested, ok := fieldSchema["schema"].(map[string]interface{}); ok {
+				if err := validateProductSchemaDefinition(nested); err != nil {
+					return fmt.Errorf("object field '%s' schema invalid: %v", fieldName, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateMongoKey checks MongoDB field name rules
+func validateMongoKey(key string) error {
+	if strings.TrimSpace(key) == "" {
+		return fmt.Errorf("field name cannot be empty")
+	}
+	if strings.Contains(key, "\x00") {
+		return fmt.Errorf("field name '%s' contains null character", key)
+	}
+	if strings.HasPrefix(key, "$") {
+		return fmt.Errorf("field name '%s' cannot start with '$'", key)
+	}
+	if strings.Contains(key, ".") {
+		return fmt.Errorf("field name '%s' cannot contain '.'", key)
+	}
+	return nil
+}
+
 // Product CRUD Operations
 func (s *ProductServiceServer) CreateProduct(ctx context.Context, req *CreateProductRequest) (*ProductResponse, error) {
+	// Validate schema definition before storing
+	if err := validateProductSchemaDefinition(req.Schema); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid schema definition: %v", err)
+	}
 	product := &Product{
 		ID:          primitive.NewObjectID().Hex(),
 		Name:        req.Name,
@@ -441,6 +587,10 @@ func (s *ProductServiceServer) GetProduct(ctx context.Context, req *GetProductRe
 }
 
 func (s *ProductServiceServer) UpdateProduct(ctx context.Context, req *UpdateProductRequest) (*ProductResponse, error) {
+	// Validate schema definition before updating
+	if err := validateProductSchemaDefinition(req.Schema); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid schema definition: %v", err)
+	}
 	update := bson.M{
 		"$set": bson.M{
 			"name":        req.Name,
@@ -707,7 +857,11 @@ func (s *ProductServiceServer) httpCreateProduct(w http.ResponseWriter, r *http.
 
 	product, err := s.CreateProduct(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if status.Code(err) == codes.InvalidArgument {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -746,9 +900,12 @@ func (s *ProductServiceServer) httpUpdateProduct(w http.ResponseWriter, r *http.
 
 	product, err := s.UpdateProduct(r.Context(), &req)
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
+		switch status.Code(err) {
+		case codes.NotFound:
 			http.Error(w, "Product not found", http.StatusNotFound)
-		} else {
+		case codes.InvalidArgument:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
