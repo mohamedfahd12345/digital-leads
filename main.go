@@ -258,6 +258,37 @@ func validateDataAgainstSchema(data map[string]interface{}, schema map[string]in
 				}
 			}
 		}
+
+		// If the field is an array, validate each element against the 'items' schema/type
+		if fieldType == "array" {
+			itemsRaw, ok := fieldInfo["items"]
+			if !ok {
+				return fmt.Errorf("array field '%s' must define 'items' in schema", field)
+			}
+			sliceVal := reflect.ValueOf(value)
+			if sliceVal.Kind() != reflect.Slice {
+				return fmt.Errorf("field '%s' must be an array", field)
+			}
+			for i := 0; i < sliceVal.Len(); i++ {
+				itemVal := sliceVal.Index(i).Interface()
+				switch it := itemsRaw.(type) {
+				case string:
+					itemType := strings.ToLower(strings.TrimSpace(it))
+					if err := validateFieldType(fmt.Sprintf("%s[%d]", field, i), itemVal, itemType); err != nil {
+						return err
+					}
+				case map[string]interface{}:
+					// Reuse the existing validator by wrapping the item under a faux key
+					wrapperSchema := map[string]interface{}{"value": it}
+					wrapperData := map[string]interface{}{"value": itemVal}
+					if err := validateDataAgainstSchema(wrapperData, wrapperSchema); err != nil {
+						return fmt.Errorf("array field '%s' item %d invalid: %v", field, i, err)
+					}
+				default:
+					return fmt.Errorf("array field '%s' 'items' must be a type string or an object schema", field)
+				}
+			}
+		}
 	}
 
 	return nil
