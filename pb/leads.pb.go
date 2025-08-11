@@ -429,7 +429,7 @@ func (x *ListProductsResponse) GetTotal() int32 {
 }
 
 // Lead Messages
-type CreateLeadRequest struct {
+type LeadObject struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProductId     string                 `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
 	Data          *structpb.Struct       `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
@@ -437,9 +437,62 @@ type CreateLeadRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *LeadObject) Reset() {
+	*x = LeadObject{}
+	mi := &file_leads_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeadObject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeadObject) ProtoMessage() {}
+
+func (x *LeadObject) ProtoReflect() protoreflect.Message {
+	mi := &file_leads_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeadObject.ProtoReflect.Descriptor instead.
+func (*LeadObject) Descriptor() ([]byte, []int) {
+	return file_leads_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *LeadObject) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+func (x *LeadObject) GetData() *structpb.Struct {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type CreateLeadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PhoneNumber   string                 `protobuf:"bytes,1,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"` // required at HTTP level
+	ProductId     string                 `protobuf:"bytes,2,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	Data          *structpb.Struct       `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
 func (x *CreateLeadRequest) Reset() {
 	*x = CreateLeadRequest{}
-	mi := &file_leads_proto_msgTypes[7]
+	mi := &file_leads_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -451,7 +504,7 @@ func (x *CreateLeadRequest) String() string {
 func (*CreateLeadRequest) ProtoMessage() {}
 
 func (x *CreateLeadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[7]
+	mi := &file_leads_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -464,7 +517,14 @@ func (x *CreateLeadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateLeadRequest.ProtoReflect.Descriptor instead.
 func (*CreateLeadRequest) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{7}
+	return file_leads_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CreateLeadRequest) GetPhoneNumber() string {
+	if x != nil {
+		return x.PhoneNumber
+	}
+	return ""
 }
 
 func (x *CreateLeadRequest) GetProductId() string {
@@ -484,8 +544,8 @@ func (x *CreateLeadRequest) GetData() *structpb.Struct {
 type LeadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ProductId     string                 `protobuf:"bytes,2,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
-	Data          *structpb.Struct       `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	PhoneNumber   string                 `protobuf:"bytes,2,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
+	Objects       []*LeadObject          `protobuf:"bytes,3,rep,name=objects,proto3" json:"objects,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -494,7 +554,7 @@ type LeadResponse struct {
 
 func (x *LeadResponse) Reset() {
 	*x = LeadResponse{}
-	mi := &file_leads_proto_msgTypes[8]
+	mi := &file_leads_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -506,7 +566,7 @@ func (x *LeadResponse) String() string {
 func (*LeadResponse) ProtoMessage() {}
 
 func (x *LeadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[8]
+	mi := &file_leads_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -519,7 +579,7 @@ func (x *LeadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeadResponse.ProtoReflect.Descriptor instead.
 func (*LeadResponse) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{8}
+	return file_leads_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *LeadResponse) GetId() string {
@@ -529,16 +589,16 @@ func (x *LeadResponse) GetId() string {
 	return ""
 }
 
-func (x *LeadResponse) GetProductId() string {
+func (x *LeadResponse) GetPhoneNumber() string {
 	if x != nil {
-		return x.ProductId
+		return x.PhoneNumber
 	}
 	return ""
 }
 
-func (x *LeadResponse) GetData() *structpb.Struct {
+func (x *LeadResponse) GetObjects() []*LeadObject {
 	if x != nil {
-		return x.Data
+		return x.Objects
 	}
 	return nil
 }
@@ -566,7 +626,7 @@ type GetLeadRequest struct {
 
 func (x *GetLeadRequest) Reset() {
 	*x = GetLeadRequest{}
-	mi := &file_leads_proto_msgTypes[9]
+	mi := &file_leads_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +638,7 @@ func (x *GetLeadRequest) String() string {
 func (*GetLeadRequest) ProtoMessage() {}
 
 func (x *GetLeadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[9]
+	mi := &file_leads_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +651,7 @@ func (x *GetLeadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLeadRequest.ProtoReflect.Descriptor instead.
 func (*GetLeadRequest) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{9}
+	return file_leads_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetLeadRequest) GetId() string {
@@ -604,14 +664,14 @@ func (x *GetLeadRequest) GetId() string {
 type UpdateLeadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Data          *structpb.Struct       `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Objects       []*LeadObject          `protobuf:"bytes,2,rep,name=objects,proto3" json:"objects,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateLeadRequest) Reset() {
 	*x = UpdateLeadRequest{}
-	mi := &file_leads_proto_msgTypes[10]
+	mi := &file_leads_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +683,7 @@ func (x *UpdateLeadRequest) String() string {
 func (*UpdateLeadRequest) ProtoMessage() {}
 
 func (x *UpdateLeadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[10]
+	mi := &file_leads_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +696,7 @@ func (x *UpdateLeadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLeadRequest.ProtoReflect.Descriptor instead.
 func (*UpdateLeadRequest) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{10}
+	return file_leads_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateLeadRequest) GetId() string {
@@ -646,9 +706,9 @@ func (x *UpdateLeadRequest) GetId() string {
 	return ""
 }
 
-func (x *UpdateLeadRequest) GetData() *structpb.Struct {
+func (x *UpdateLeadRequest) GetObjects() []*LeadObject {
 	if x != nil {
-		return x.Data
+		return x.Objects
 	}
 	return nil
 }
@@ -662,7 +722,7 @@ type DeleteLeadRequest struct {
 
 func (x *DeleteLeadRequest) Reset() {
 	*x = DeleteLeadRequest{}
-	mi := &file_leads_proto_msgTypes[11]
+	mi := &file_leads_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +734,7 @@ func (x *DeleteLeadRequest) String() string {
 func (*DeleteLeadRequest) ProtoMessage() {}
 
 func (x *DeleteLeadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[11]
+	mi := &file_leads_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +747,7 @@ func (x *DeleteLeadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteLeadRequest.ProtoReflect.Descriptor instead.
 func (*DeleteLeadRequest) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{11}
+	return file_leads_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteLeadRequest) GetId() string {
@@ -698,17 +758,18 @@ func (x *DeleteLeadRequest) GetId() string {
 }
 
 type ListLeadsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProductId     string                 `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// filter leads that contain at least one object with this product_id
+	ProductId     string `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	Limit         int32  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListLeadsRequest) Reset() {
 	*x = ListLeadsRequest{}
-	mi := &file_leads_proto_msgTypes[12]
+	mi := &file_leads_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +781,7 @@ func (x *ListLeadsRequest) String() string {
 func (*ListLeadsRequest) ProtoMessage() {}
 
 func (x *ListLeadsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[12]
+	mi := &file_leads_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +794,7 @@ func (x *ListLeadsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLeadsRequest.ProtoReflect.Descriptor instead.
 func (*ListLeadsRequest) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{12}
+	return file_leads_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListLeadsRequest) GetProductId() string {
@@ -767,7 +828,7 @@ type ListLeadsResponse struct {
 
 func (x *ListLeadsResponse) Reset() {
 	*x = ListLeadsResponse{}
-	mi := &file_leads_proto_msgTypes[13]
+	mi := &file_leads_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +840,7 @@ func (x *ListLeadsResponse) String() string {
 func (*ListLeadsResponse) ProtoMessage() {}
 
 func (x *ListLeadsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_leads_proto_msgTypes[13]
+	mi := &file_leads_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +853,7 @@ func (x *ListLeadsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLeadsResponse.ProtoReflect.Descriptor instead.
 func (*ListLeadsResponse) Descriptor() ([]byte, []int) {
-	return file_leads_proto_rawDescGZIP(), []int{13}
+	return file_leads_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListLeadsResponse) GetLeads() []*LeadResponse {
@@ -841,16 +902,21 @@ const file_leads_proto_rawDesc = "" +
 	"\x06offset\x18\x02 \x01(\x05R\x06offset\"`\n" +
 	"\x14ListProductsResponse\x122\n" +
 	"\bproducts\x18\x01 \x03(\v2\x16.leads.ProductResponseR\bproducts\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"_\n" +
-	"\x11CreateLeadRequest\x12\x1d\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"X\n" +
+	"\n" +
+	"LeadObject\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12+\n" +
-	"\x04data\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x04data\"\xa8\x01\n" +
-	"\fLeadResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\x04data\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x04data\"\x82\x01\n" +
+	"\x11CreateLeadRequest\x12!\n" +
+	"\fphone_number\x18\x01 \x01(\tR\vphoneNumber\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x02 \x01(\tR\tproductId\x12+\n" +
-	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x04data\x12\x1d\n" +
+	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x04data\"\xac\x01\n" +
+	"\fLeadResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fphone_number\x18\x02 \x01(\tR\vphoneNumber\x12+\n" +
+	"\aobjects\x18\x03 \x03(\v2\x11.leads.LeadObjectR\aobjects\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
@@ -859,7 +925,7 @@ const file_leads_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
 	"\x11UpdateLeadRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
-	"\x04data\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x04data\"#\n" +
+	"\aobjects\x18\x02 \x03(\v2\x11.leads.LeadObjectR\aobjects\"#\n" +
 	"\x11DeleteLeadRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"_\n" +
 	"\x10ListLeadsRequest\x12\x1d\n" +
@@ -898,7 +964,7 @@ func file_leads_proto_rawDescGZIP() []byte {
 	return file_leads_proto_rawDescData
 }
 
-var file_leads_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_leads_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_leads_proto_goTypes = []any{
 	(*CreateProductRequest)(nil), // 0: leads.CreateProductRequest
 	(*ProductResponse)(nil),      // 1: leads.ProductResponse
@@ -907,50 +973,52 @@ var file_leads_proto_goTypes = []any{
 	(*DeleteProductRequest)(nil), // 4: leads.DeleteProductRequest
 	(*ListProductsRequest)(nil),  // 5: leads.ListProductsRequest
 	(*ListProductsResponse)(nil), // 6: leads.ListProductsResponse
-	(*CreateLeadRequest)(nil),    // 7: leads.CreateLeadRequest
-	(*LeadResponse)(nil),         // 8: leads.LeadResponse
-	(*GetLeadRequest)(nil),       // 9: leads.GetLeadRequest
-	(*UpdateLeadRequest)(nil),    // 10: leads.UpdateLeadRequest
-	(*DeleteLeadRequest)(nil),    // 11: leads.DeleteLeadRequest
-	(*ListLeadsRequest)(nil),     // 12: leads.ListLeadsRequest
-	(*ListLeadsResponse)(nil),    // 13: leads.ListLeadsResponse
-	(*structpb.Struct)(nil),      // 14: google.protobuf.Struct
-	(*emptypb.Empty)(nil),        // 15: google.protobuf.Empty
+	(*LeadObject)(nil),           // 7: leads.LeadObject
+	(*CreateLeadRequest)(nil),    // 8: leads.CreateLeadRequest
+	(*LeadResponse)(nil),         // 9: leads.LeadResponse
+	(*GetLeadRequest)(nil),       // 10: leads.GetLeadRequest
+	(*UpdateLeadRequest)(nil),    // 11: leads.UpdateLeadRequest
+	(*DeleteLeadRequest)(nil),    // 12: leads.DeleteLeadRequest
+	(*ListLeadsRequest)(nil),     // 13: leads.ListLeadsRequest
+	(*ListLeadsResponse)(nil),    // 14: leads.ListLeadsResponse
+	(*structpb.Struct)(nil),      // 15: google.protobuf.Struct
+	(*emptypb.Empty)(nil),        // 16: google.protobuf.Empty
 }
 var file_leads_proto_depIdxs = []int32{
-	14, // 0: leads.CreateProductRequest.schema:type_name -> google.protobuf.Struct
-	14, // 1: leads.ProductResponse.schema:type_name -> google.protobuf.Struct
-	14, // 2: leads.UpdateProductRequest.schema:type_name -> google.protobuf.Struct
+	15, // 0: leads.CreateProductRequest.schema:type_name -> google.protobuf.Struct
+	15, // 1: leads.ProductResponse.schema:type_name -> google.protobuf.Struct
+	15, // 2: leads.UpdateProductRequest.schema:type_name -> google.protobuf.Struct
 	1,  // 3: leads.ListProductsResponse.products:type_name -> leads.ProductResponse
-	14, // 4: leads.CreateLeadRequest.data:type_name -> google.protobuf.Struct
-	14, // 5: leads.LeadResponse.data:type_name -> google.protobuf.Struct
-	14, // 6: leads.UpdateLeadRequest.data:type_name -> google.protobuf.Struct
-	8,  // 7: leads.ListLeadsResponse.leads:type_name -> leads.LeadResponse
-	0,  // 8: leads.ProductService.CreateProduct:input_type -> leads.CreateProductRequest
-	2,  // 9: leads.ProductService.GetProduct:input_type -> leads.GetProductRequest
-	3,  // 10: leads.ProductService.UpdateProduct:input_type -> leads.UpdateProductRequest
-	4,  // 11: leads.ProductService.DeleteProduct:input_type -> leads.DeleteProductRequest
-	5,  // 12: leads.ProductService.ListProducts:input_type -> leads.ListProductsRequest
-	7,  // 13: leads.ProductService.CreateLead:input_type -> leads.CreateLeadRequest
-	9,  // 14: leads.ProductService.GetLead:input_type -> leads.GetLeadRequest
-	10, // 15: leads.ProductService.UpdateLead:input_type -> leads.UpdateLeadRequest
-	11, // 16: leads.ProductService.DeleteLead:input_type -> leads.DeleteLeadRequest
-	12, // 17: leads.ProductService.ListLeads:input_type -> leads.ListLeadsRequest
-	1,  // 18: leads.ProductService.CreateProduct:output_type -> leads.ProductResponse
-	1,  // 19: leads.ProductService.GetProduct:output_type -> leads.ProductResponse
-	1,  // 20: leads.ProductService.UpdateProduct:output_type -> leads.ProductResponse
-	15, // 21: leads.ProductService.DeleteProduct:output_type -> google.protobuf.Empty
-	6,  // 22: leads.ProductService.ListProducts:output_type -> leads.ListProductsResponse
-	8,  // 23: leads.ProductService.CreateLead:output_type -> leads.LeadResponse
-	8,  // 24: leads.ProductService.GetLead:output_type -> leads.LeadResponse
-	8,  // 25: leads.ProductService.UpdateLead:output_type -> leads.LeadResponse
-	15, // 26: leads.ProductService.DeleteLead:output_type -> google.protobuf.Empty
-	13, // 27: leads.ProductService.ListLeads:output_type -> leads.ListLeadsResponse
-	18, // [18:28] is the sub-list for method output_type
-	8,  // [8:18] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	15, // 4: leads.LeadObject.data:type_name -> google.protobuf.Struct
+	15, // 5: leads.CreateLeadRequest.data:type_name -> google.protobuf.Struct
+	7,  // 6: leads.LeadResponse.objects:type_name -> leads.LeadObject
+	7,  // 7: leads.UpdateLeadRequest.objects:type_name -> leads.LeadObject
+	9,  // 8: leads.ListLeadsResponse.leads:type_name -> leads.LeadResponse
+	0,  // 9: leads.ProductService.CreateProduct:input_type -> leads.CreateProductRequest
+	2,  // 10: leads.ProductService.GetProduct:input_type -> leads.GetProductRequest
+	3,  // 11: leads.ProductService.UpdateProduct:input_type -> leads.UpdateProductRequest
+	4,  // 12: leads.ProductService.DeleteProduct:input_type -> leads.DeleteProductRequest
+	5,  // 13: leads.ProductService.ListProducts:input_type -> leads.ListProductsRequest
+	8,  // 14: leads.ProductService.CreateLead:input_type -> leads.CreateLeadRequest
+	10, // 15: leads.ProductService.GetLead:input_type -> leads.GetLeadRequest
+	11, // 16: leads.ProductService.UpdateLead:input_type -> leads.UpdateLeadRequest
+	12, // 17: leads.ProductService.DeleteLead:input_type -> leads.DeleteLeadRequest
+	13, // 18: leads.ProductService.ListLeads:input_type -> leads.ListLeadsRequest
+	1,  // 19: leads.ProductService.CreateProduct:output_type -> leads.ProductResponse
+	1,  // 20: leads.ProductService.GetProduct:output_type -> leads.ProductResponse
+	1,  // 21: leads.ProductService.UpdateProduct:output_type -> leads.ProductResponse
+	16, // 22: leads.ProductService.DeleteProduct:output_type -> google.protobuf.Empty
+	6,  // 23: leads.ProductService.ListProducts:output_type -> leads.ListProductsResponse
+	9,  // 24: leads.ProductService.CreateLead:output_type -> leads.LeadResponse
+	9,  // 25: leads.ProductService.GetLead:output_type -> leads.LeadResponse
+	9,  // 26: leads.ProductService.UpdateLead:output_type -> leads.LeadResponse
+	16, // 27: leads.ProductService.DeleteLead:output_type -> google.protobuf.Empty
+	14, // 28: leads.ProductService.ListLeads:output_type -> leads.ListLeadsResponse
+	19, // [19:29] is the sub-list for method output_type
+	9,  // [9:19] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_leads_proto_init() }
@@ -964,7 +1032,7 @@ func file_leads_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_leads_proto_rawDesc), len(file_leads_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

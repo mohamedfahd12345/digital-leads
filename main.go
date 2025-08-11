@@ -34,13 +34,19 @@ type Product struct {
 	UpdatedAt   time.Time              `bson:"updated_at" json:"updated_at"`
 }
 
-// Lead represents a lead with product reference and data
-type Lead struct {
-	ID        string                 `bson:"_id,omitempty" json:"id"`
+// LeadObject represents a single product-specific payload within a lead
+type LeadObject struct {
 	ProductID string                 `bson:"product_id" json:"product_id"`
 	Data      map[string]interface{} `bson:"data" json:"data"`
-	CreatedAt time.Time              `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time              `bson:"updated_at" json:"updated_at"`
+}
+
+// Lead represents a lead with a list of product/data objects
+type Lead struct {
+	ID          string       `bson:"_id,omitempty" json:"id"`
+	PhoneNumber string       `bson:"phone_number" json:"phone_number"`
+	Objects     []LeadObject `bson:"objects" json:"objects"`
+	CreatedAt   time.Time    `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time    `bson:"updated_at" json:"updated_at"`
 }
 
 // gRPC Request/Response structs
@@ -75,16 +81,17 @@ type DeleteProductRequest struct {
 }
 
 type CreateLeadRequest struct {
-	ProductID string                 `json:"product_id"`
-	Data      map[string]interface{} `json:"data"`
+	PhoneNumber string                 `json:"phone_number"`
+	ProductID   string                 `json:"product_id"`
+	Data        map[string]interface{} `json:"data"`
 }
 
 type LeadResponse struct {
-	ID        string                 `json:"id"`
-	ProductID string                 `json:"product_id"`
-	Data      map[string]interface{} `json:"data"`
-	CreatedAt string                 `json:"created_at"`
-	UpdatedAt string                 `json:"updated_at"`
+	ID          string       `json:"id"`
+	PhoneNumber string       `json:"phone_number"`
+	Objects     []LeadObject `json:"objects"`
+	CreatedAt   string       `json:"created_at"`
+	UpdatedAt   string       `json:"updated_at"`
 }
 
 type GetLeadRequest struct {
@@ -92,8 +99,8 @@ type GetLeadRequest struct {
 }
 
 type UpdateLeadRequest struct {
-	ID   string                 `json:"id"`
-	Data map[string]interface{} `json:"data"`
+	ID      string       `json:"id"`
+	Objects []LeadObject `json:"objects"`
 }
 
 type DeleteLeadRequest struct {
@@ -757,7 +764,11 @@ func (s *ProductServiceServer) ListProducts(ctx context.Context, req *ListProduc
 
 // Lead CRUD Operations
 func (s *ProductServiceServer) CreateLead(ctx context.Context, req *CreateLeadRequest) (*LeadResponse, error) {
-	// First, get the product to validate schema
+	// phone number is required always
+	if strings.TrimSpace(req.PhoneNumber) == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "phone_number is required")
+	}
+	// First, get the product to validate schema for the object being added
 	var product Product
 	err := s.productCollection.FindOne(ctx, bson.M{"_id": req.ProductID}).Decode(&product)
 	if err != nil {
@@ -772,26 +783,36 @@ func (s *ProductServiceServer) CreateLead(ctx context.Context, req *CreateLeadRe
 		return nil, status.Errorf(codes.InvalidArgument, "data validation failed: %v", err)
 	}
 
-	lead := &Lead{
-		ID:        primitive.NewObjectID().Hex(),
-		ProductID: req.ProductID,
-		Data:      req.Data,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	// If a lead with this phone number exists, append the object to it; else create a new lead
+	update := bson.M{
+		"$push": bson.M{
+			"objects": LeadObject{ProductID: req.ProductID, Data: req.Data},
+		},
+		"$setOnInsert": bson.M{
+			"_id":        primitive.NewObjectID().Hex(),
+			"created_at": time.Now(),
+		},
+		"$set": bson.M{
+			"updated_at":   time.Now(),
+			"phone_number": req.PhoneNumber,
+		},
 	}
-
-	_, err = s.leadCollection.InsertOne(ctx, lead)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create lead: %v", err)
+	// Upsert by phone_number
+	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
+	result := s.leadCollection.FindOneAndUpdate(ctx, bson.M{"phone_number": req.PhoneNumber}, update, opts)
+	var upsertedLead Lead
+	if err := result.Decode(&upsertedLead); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create/update lead: %v", err)
 	}
-
 	return &LeadResponse{
-		ID:        lead.ID,
-		ProductID: lead.ProductID,
-		Data:      lead.Data,
-		CreatedAt: lead.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: lead.UpdatedAt.Format(time.RFC3339),
+		ID:          upsertedLead.ID,
+		PhoneNumber: upsertedLead.PhoneNumber,
+		Objects:     upsertedLead.Objects,
+		CreatedAt:   upsertedLead.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   upsertedLead.UpdatedAt.Format(time.RFC3339),
 	}, nil
+
+	// unreachable
 }
 
 func (s *ProductServiceServer) GetLead(ctx context.Context, req *GetLeadRequest) (*LeadResponse, error) {
@@ -805,16 +826,16 @@ func (s *ProductServiceServer) GetLead(ctx context.Context, req *GetLeadRequest)
 	}
 
 	return &LeadResponse{
-		ID:        lead.ID,
-		ProductID: lead.ProductID,
-		Data:      lead.Data,
-		CreatedAt: lead.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: lead.UpdatedAt.Format(time.RFC3339),
+		ID:          lead.ID,
+		PhoneNumber: lead.PhoneNumber,
+		Objects:     lead.Objects,
+		CreatedAt:   lead.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   lead.UpdatedAt.Format(time.RFC3339),
 	}, nil
 }
 
 func (s *ProductServiceServer) UpdateLead(ctx context.Context, req *UpdateLeadRequest) (*LeadResponse, error) {
-	// Get existing lead to get product ID
+	// Ensure lead exists
 	var existingLead Lead
 	err := s.leadCollection.FindOne(ctx, bson.M{"_id": req.ID}).Decode(&existingLead)
 	if err != nil {
@@ -824,21 +845,24 @@ func (s *ProductServiceServer) UpdateLead(ctx context.Context, req *UpdateLeadRe
 		return nil, status.Errorf(codes.Internal, "failed to get lead: %v", err)
 	}
 
-	// Get product schema for validation
-	var product Product
-	err = s.productCollection.FindOne(ctx, bson.M{"_id": existingLead.ProductID}).Decode(&product)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get product for validation: %v", err)
-	}
-
-	// Validate data against product schema
-	if err := validateDataAgainstSchema(req.Data, product.Schema); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "data validation failed: %v", err)
+	// Validate each object against its product schema
+	for _, obj := range req.Objects {
+		var product Product
+		err := s.productCollection.FindOne(ctx, bson.M{"_id": obj.ProductID}).Decode(&product)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				return nil, status.Errorf(codes.NotFound, "product not found for object")
+			}
+			return nil, status.Errorf(codes.Internal, "failed to get product for validation: %v", err)
+		}
+		if err := validateDataAgainstSchema(obj.Data, product.Schema); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "data validation failed for object: %v", err)
+		}
 	}
 
 	update := bson.M{
 		"$set": bson.M{
-			"data":       req.Data,
+			"objects":    req.Objects,
 			"updated_at": time.Now(),
 		},
 	}
@@ -872,7 +896,8 @@ func (s *ProductServiceServer) DeleteLead(ctx context.Context, req *DeleteLeadRe
 func (s *ProductServiceServer) ListLeads(ctx context.Context, req *ListLeadsRequest) (*ListLeadsResponse, error) {
 	filter := bson.M{}
 	if req.ProductID != "" {
-		filter["product_id"] = req.ProductID
+		// Match any lead that has an object with this product_id
+		filter["objects.product_id"] = req.ProductID
 	}
 
 	limit := int64(req.Limit)
@@ -897,11 +922,11 @@ func (s *ProductServiceServer) ListLeads(ctx context.Context, req *ListLeadsRequ
 		}
 
 		leads = append(leads, &LeadResponse{
-			ID:        lead.ID,
-			ProductID: lead.ProductID,
-			Data:      lead.Data,
-			CreatedAt: lead.CreatedAt.Format(time.RFC3339),
-			UpdatedAt: lead.UpdatedAt.Format(time.RFC3339),
+			ID:          lead.ID,
+			PhoneNumber: lead.PhoneNumber,
+			Objects:     lead.Objects,
+			CreatedAt:   lead.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   lead.UpdatedAt.Format(time.RFC3339),
 		})
 	}
 
@@ -1059,7 +1084,7 @@ func (s *ProductServiceServer) httpCreateLead(w http.ResponseWriter, r *http.Req
 	lead, err := s.CreateLead(r.Context(), &req)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			http.Error(w, "Product not found", http.StatusNotFound)
+			http.Error(w, "Not found", http.StatusNotFound)
 		} else if status.Code(err) == codes.InvalidArgument {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {

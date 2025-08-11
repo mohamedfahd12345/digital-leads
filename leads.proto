@@ -66,15 +66,21 @@ message ListProductsResponse {
 }
 
 // Lead Messages
-message CreateLeadRequest {
+message LeadObject {
   string product_id = 1;
   google.protobuf.Struct data = 2;
 }
 
-message LeadResponse {
-  string id = 1;
+message CreateLeadRequest {
+  string phone_number = 1; // required at HTTP level
   string product_id = 2;
   google.protobuf.Struct data = 3;
+}
+
+message LeadResponse {
+  string id = 1;
+  string phone_number = 2;
+  repeated LeadObject objects = 3;
   string created_at = 4;
   string updated_at = 5;
 }
@@ -85,7 +91,7 @@ message GetLeadRequest {
 
 message UpdateLeadRequest {
   string id = 1;
-  google.protobuf.Struct data = 2;
+  repeated LeadObject objects = 2;
 }
 
 message DeleteLeadRequest {
@@ -93,6 +99,7 @@ message DeleteLeadRequest {
 }
 
 message ListLeadsRequest {
+  // filter leads that contain at least one object with this product_id
   string product_id = 1;
   int32 limit = 2;
   int32 offset = 3;
