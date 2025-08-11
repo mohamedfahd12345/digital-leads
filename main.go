@@ -440,6 +440,31 @@ func validateProductSchemaDefinition(schema map[string]interface{}) error {
 			return fmt.Errorf("field '%s' has unsupported type '%s'", fieldName, typeStr)
 		}
 
+		// Enforce allowed keywords per type (spelling/unknown key checks)
+		allowedKeys := map[string]bool{
+			"type":     true,
+			"required": true,
+		}
+		switch typeStr {
+		case "string":
+			allowedKeys["pattern"] = true
+			allowedKeys["minLength"] = true
+			allowedKeys["maxLength"] = true
+		case "number", "double":
+			allowedKeys["minimum"] = true
+			allowedKeys["maximum"] = true
+		case "object":
+			allowedKeys["properties"] = true
+			allowedKeys["schema"] = true
+		case "array":
+			allowedKeys["items"] = true
+		}
+		for key := range fieldSchema {
+			if !allowedKeys[key] {
+				return fmt.Errorf("field '%s' has unknown keyword '%s' for type '%s'", fieldName, key, typeStr)
+			}
+		}
+
 		// required must be boolean if present
 		if v, exists := fieldSchema["required"]; exists {
 			if _, ok := v.(bool); !ok {
@@ -512,6 +537,31 @@ func validateProductSchemaDefinition(schema map[string]interface{}) error {
 				if err := validateProductSchemaDefinition(nested); err != nil {
 					return fmt.Errorf("object field '%s' schema invalid: %v", fieldName, err)
 				}
+			}
+		}
+
+		// Array validation: require and validate 'items'
+		if typeStr == "array" {
+			items, exists := fieldSchema["items"]
+			if !exists {
+				return fmt.Errorf("field '%s' of type 'array' must specify 'items'", fieldName)
+			}
+			switch it := items.(type) {
+			case string:
+				itemType := strings.ToLower(strings.TrimSpace(it))
+				if !allowedTypes[itemType] {
+					return fmt.Errorf("field '%s' 'items' has unsupported type '%s'", fieldName, itemType)
+				}
+			case map[string]interface{}:
+				// Validate the item schema by wrapping into a faux field
+				faux := map[string]interface{}{
+					"element": it,
+				}
+				if err := validateProductSchemaDefinition(faux); err != nil {
+					return fmt.Errorf("field '%s' 'items' schema invalid: %v", fieldName, err)
+				}
+			default:
+				return fmt.Errorf("field '%s' 'items' must be a type string or an object schema", fieldName)
 			}
 		}
 	}
