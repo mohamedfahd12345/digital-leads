@@ -27,6 +27,73 @@ go run main.go
 
 ---
 
+## Schema Validation Reference
+
+The HTTP API validates lead `data` against the product `schema`. Each schema field supports:
+
+- type: one of `string`, `number`, `double`, `boolean` (or `bool`), `array`, `object`, `null`, `date`, `timestamp`
+- required: boolean indicating whether the field must be present
+
+Additional constraints by type:
+
+- string: `pattern` (regex), `minLength` (int), `maxLength` (int)
+- number/double: `minimum` (number), `maximum` (number)
+- object: nested schema via `properties` or `schema`
+- array: checks only that the value is an array; element types are not validated
+
+Notes:
+
+- Missing required fields return: `required field '<name>' is missing`
+- Extra fields not defined in the schema are allowed
+- `null` is only accepted when `type` is `null`
+- `date` accepts ISO/RFC3339 strings (e.g., `2024-08-09T12:00:00Z`), or native date types server-side
+- `timestamp` accepts integers, floats, or numeric strings (e.g., `1691582400` or "1691582400")
+
+### Examples
+
+String constraints:
+
+```json
+{
+  "username": { "type": "string", "required": true, "pattern": "^[a-zA-Z0-9_]+$", "minLength": 3, "maxLength": 20 }
+}
+```
+
+Number constraints:
+
+```json
+{
+  "age": { "type": "number", "required": false, "minimum": 0, "maximum": 120 }
+}
+```
+
+Nested object (use `properties` or `schema` for nested validation):
+
+```json
+{
+  "user_info": {
+    "type": "object",
+    "required": true,
+    "properties": {
+      "first_name": { "type": "string", "required": true },
+      "last_name": { "type": "string", "required": true },
+      "age": { "type": "number", "required": false, "minimum": 0 }
+    }
+  }
+}
+```
+
+Date and timestamp:
+
+```json
+{
+  "signup_date": { "type": "date", "required": true },
+  "last_seen_ts": { "type": "timestamp", "required": false }
+}
+```
+
+---
+
 ## Postman Requests
 
 ### 1. Create Product
