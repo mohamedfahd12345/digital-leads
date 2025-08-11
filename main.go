@@ -142,6 +142,13 @@ type ProductServiceServer struct {
 
 // Schema validation
 func validateDataAgainstSchema(data map[string]interface{}, schema map[string]interface{}) error {
+	// Reject any extra fields in data that are not defined in schema
+	for key := range data {
+		if _, exists := schema[key]; !exists {
+			return fmt.Errorf("unknown field '%s' is not allowed", key)
+		}
+	}
+
 	for field, fieldSchema := range schema {
 		fieldInfo, ok := fieldSchema.(map[string]interface{})
 		if !ok {
