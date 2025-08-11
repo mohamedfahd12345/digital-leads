@@ -1,0 +1,385 @@
+# Postman API Testing Guide
+
+## Setup Instructions
+
+1. **Install Dependencies:**
+```bash
+go mod tidy
+```
+
+2. **Start MongoDB** (make sure it's running on localhost:27017)
+
+3. **Run the application:**
+```bash
+go run main.go
+```
+
+4. **Server endpoints:**
+   - gRPC Server: `localhost:50051`
+   - HTTP API Server: `http://localhost:8080`
+
+---
+
+## Postman Requests
+
+### 1. Create Product
+
+**Method:** `POST`
+**URL:** `http://localhost:8080/api/products`
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "name": "Email Marketing Product",
+  "description": "A product for collecting email marketing leads",
+  "schema": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "required": true
+    },
+    "age": {
+      "type": "number",
+      "required": false
+    },
+    "phone": {
+      "type": "string",
+      "required": false
+    },
+    "interests": {
+      "type": "array",
+      "required": false
+    }
+  }
+}
+```
+
+**Expected Response:**
+```json
+{
+  "id": "64f8b1a2e5c6d7f8a9b0c1d2",
+  "name": "Email Marketing Product",
+  "description": "A product for collecting email marketing leads",
+  "schema": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "required": true
+    },
+    "age": {
+      "type": "number",
+      "required": false
+    },
+    "phone": {
+      "type": "string",
+      "required": false
+    },
+    "interests": {
+      "type": "array",
+      "required": false
+    }
+  },
+  "created_at": "2024-08-09T12:00:00Z",
+  "updated_at": "2024-08-09T12:00:00Z"
+}
+```
+
+---
+
+### 2. Get Product by ID
+
+**Method:** `GET`
+**URL:** `http://localhost:8080/api/products/{product_id}`
+
+Replace `{product_id}` with the actual ID from the create response.
+
+**Example:** `http://localhost:8080/api/products/64f8b1a2e5c6d7f8a9b0c1d2`
+
+---
+
+### 3. List All Products
+
+**Method:** `GET`
+**URL:** `http://localhost:8080/api/products`
+
+**Query Parameters (optional):**
+- `limit`: number of products to return (default: 10)
+- `offset`: number of products to skip (default: 0)
+
+**Example:** `http://localhost:8080/api/products?limit=5&offset=0`
+
+---
+
+### 4. Update Product
+
+**Method:** `PUT`
+**URL:** `http://localhost:8080/api/products/{product_id}`
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "name": "Updated Email Marketing Product",
+  "description": "Updated description for email marketing leads",
+  "schema": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "required": true
+    },
+    "age": {
+      "type": "number",
+      "required": false
+    },
+    "company": {
+      "type": "string",
+      "required": true
+    }
+  }
+}
+```
+
+---
+
+### 5. Delete Product
+
+**Method:** `DELETE`
+**URL:** `http://localhost:8080/api/products/{product_id}`
+
+**Expected Response:** `204 No Content`
+
+---
+
+### 6. Create Valid Lead
+
+**Method:** `POST`
+**URL:** `http://localhost:8080/api/leads`
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 30,
+    "phone": "+1234567890",
+    "interests": ["technology", "marketing"]
+  }
+}
+```
+
+**Expected Response:**
+```json
+{
+  "id": "64f8b1a2e5c6d7f8a9b0c1d3",
+  "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 30,
+    "phone": "+1234567890",
+    "interests": ["technology", "marketing"]
+  },
+  "created_at": "2024-08-09T12:05:00Z",
+  "updated_at": "2024-08-09T12:05:00Z"
+}
+```
+
+---
+
+### 7. Create Invalid Lead (Missing Required Field)
+
+**Method:** `POST`
+**URL:** `http://localhost:8080/api/leads`
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+  "data": {
+    "name": "Jane Smith",
+    "age": 25
+    // Missing required "email" field
+  }
+}
+```
+
+**Expected Response:** `400 Bad Request`
+```json
+{
+  "error": "data validation failed: required field 'email' is missing"
+}
+```
+
+---
+
+### 8. Create Invalid Lead (Wrong Data Type)
+
+**Method:** `POST`
+**URL:** `http://localhost:8080/api/leads`
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+  "data": {
+    "name": "Bob Wilson",
+    "email": "bob@example.com",
+    "age": "thirty"  // Should be number, not string
+  }
+}
+```
+
+**Expected Response:** `400 Bad Request`
+```json
+{
+  "error": "data validation failed: field 'age' must be a number"
+}
+```
+
+---
+
+### 9. Get Lead by ID
+
+**Method:** `GET`
+**URL:** `http://localhost:8080/api/leads/{lead_id}`
+
+Replace `{lead_id}` with the actual ID from the create response.
+
+---
+
+### 10. List Leads
+
+**Method:** `GET`
+**URL:** `http://localhost:8080/api/leads`
+
+**Query Parameters (optional):**
+- `product_id`: filter leads by product ID
+- `limit`: number of leads to return (default: 10)
+- `offset`: number of leads to skip (default: 0)
+
+**Examples:**
+- All leads: `http://localhost:8080/api/leads`
+- Leads for specific product: `http://localhost:8080/api/leads?product_id=64f8b1a2e5c6d7f8a9b0c1d2`
+- Paginated: `http://localhost:8080/api/leads?limit=5&offset=10`
+
+---
+
+### 11. Update Lead
+
+**Method:** `PUT`
+**URL:** `http://localhost:8080/api/leads/{lead_id}`
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "data": {
+    "name": "John Updated",
+    "email": "john.updated@example.com",
+    "age": 31,
+    "phone": "+1234567891",
+    "interests": ["technology", "marketing", "sales"]
+  }
+}
+```
+
+---
+
+### 12. Delete Lead
+
+**Method:** `DELETE`
+**URL:** `http://localhost:8080/api/leads/{lead_id}`
+
+**Expected Response:** `204 No Content`
+
+---
+
+## Testing Workflow
+
+### Step-by-Step Testing:
+
+1. **Start by creating a product** using request #1
+2. **Copy the product ID** from the response
+3. **Create valid leads** using request #6 (replace product_id with your actual product ID)
+4. **Test validation** using requests #7 and #8 to see schema validation in action
+5. **List products and leads** to verify data
+6. **Update and delete** operations to test full CRUD
+
+### Schema Validation Test Cases:
+
+**Test Case 1: Required Field Validation**
+- Create a product with required fields
+- Try to create a lead missing required fields
+- Should return 400 Bad Request
+
+**Test Case 2: Data Type Validation**
+- Create a lead with wrong data types (string instead of number, etc.)
+- Should return 400 Bad Request with specific error message
+
+**Test Case 3: Non-existent Product**
+- Try to create a lead with invalid product_id
+- Should return 404 Not Found
+
+**Test Case 4: Complex Schema**
+```json
+{
+  "name": "Complex Product",
+  "description": "Product with complex validation rules",
+  "schema": {
+    "user_info": {
+      "type": "object",
+      "required": true
+    },
+    "tags": {
+      "type": "array",
+      "required": false
+    },
+    "is_active": {
+      "type": "boolean",
+      "required": true
+    },
+    "score": {
+      "type": "number",
+      "required": true
+    }
+  }
+}
+```
