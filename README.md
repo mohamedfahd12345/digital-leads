@@ -29,25 +29,26 @@ go run main.go
 
 ## Schema Validation Reference
 
-The HTTP API validates lead `data` against the product `schema`. Each schema field supports:
+The HTTP API validates each lead object's `data` against its product `schema`.
 
-- type: one of `string`, `number`, `double`, `boolean` (or `bool`), `array`, `object`, `null`, `date`, `timestamp`
-- required: boolean indicating whether the field must be present
+- Types: `string`, `number`, `double`, `boolean` (or `bool`), `array`, `object`, `null`, `date`, `timestamp`
+- Common keys: `type` (string, required), `required` (boolean, optional)
 
 Additional constraints by type:
 
 - string: `pattern` (regex), `minLength` (int), `maxLength` (int)
 - number/double: `minimum` (number), `maximum` (number)
 - object: nested schema via `properties` or `schema`
-- array: checks only that the value is an array; element types are not validated
+- array: MUST define `items` as either a type string (e.g., `"string"`) or a nested schema object; each element is validated
 
-Notes:
+Global rules and notes:
 
 - Missing required fields return: `required field '<name>' is missing`
-- Extra fields not defined in the schema are allowed
+- Extra/unknown fields in `data` are NOT allowed and return: `unknown field '<name>' is not allowed`
 - `null` is only accepted when `type` is `null`
-- `date` accepts ISO/RFC3339 strings (e.g., `2024-08-09T12:00:00Z`), or native date types server-side
+- `date` accepts ISO/RFC3339 strings, or native date types server-side
 - `timestamp` accepts integers, floats, or numeric strings (e.g., `1691582400` or "1691582400")
+- Schema definition is also validated (allowed keys by type, field names cannot start with `$` or contain `.`, arrays must define `items`)
 
 ### Examples
 
@@ -83,6 +84,14 @@ Nested object (use `properties` or `schema` for nested validation):
 }
 ```
 
+Array with typed items:
+
+```json
+{
+  "interests": { "type": "array", "required": false, "items": "string" }
+}
+```
+
 Date and timestamp:
 
 ```json
@@ -115,9 +124,9 @@ Content-Type: application/json
   "schema": {
     "name": { "type": "string", "required": true },
     "email": { "type": "string", "required": true },
-    "age": { "type": "number", "required": false },
+    "age": { "type": "number", "required": false, "minimum": 0 },
     "phone": { "type": "string", "required": false },
-    "interests": { "type": "array", "required": false }
+    "interests": { "type": "array", "required": false, "items": "string" }
   }
 }
 ```
@@ -132,9 +141,9 @@ Content-Type: application/json
   "schema": {
     "name": { "type": "string", "required": true },
     "email": { "type": "string", "required": true },
-    "age": { "type": "number", "required": false },
+    "age": { "type": "number", "required": false, "minimum": 0 },
     "phone": { "type": "string", "required": false },
-    "interests": { "type": "array", "required": false }
+    "interests": { "type": "array", "required": false, "items": "string" }
   },
   "created_at": "2024-08-09T12:00:00Z",
   "updated_at": "2024-08-09T12:00:00Z"
@@ -213,6 +222,7 @@ Content-Type: application/json
 
 ```json
 {
+  "phone_number": "+1234567890",
   "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
   "data": {
     "name": "John Doe",
@@ -224,19 +234,28 @@ Content-Type: application/json
 }
 ```
 
+- **Behavior:**
+  - If a lead with the same `phone_number` exists, the new `{ product_id, data }` is appended to its `objects` array.
+  - Otherwise, a new lead is created.
+
 - **Expected Response:**
 
 ```json
 {
   "id": "64f8b1a2e5c6d7f8a9b0c1d3",
-  "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
-  "data": {
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "age": 30,
-    "phone": "+1234567890",
-    "interests": ["technology", "marketing"]
-  },
+  "phone_number": "+1234567890",
+  "objects": [
+    {
+      "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+      "data": {
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "age": 30,
+        "phone": "+1234567890",
+        "interests": ["technology", "marketing"]
+      }
+    }
+  ],
   "created_at": "2024-08-09T12:05:00Z",
   "updated_at": "2024-08-09T12:05:00Z"
 }
@@ -258,6 +277,7 @@ Content-Type: application/json
 
 ```json
 {
+  "phone_number": "+1234567899",
   "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
   "data": {
     "name": "Jane Smith",
@@ -290,6 +310,7 @@ Content-Type: application/json
 
 ```json
 {
+  "phone_number": "+1234567898",
   "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
   "data": {
     "name": "Bob Wilson",
@@ -304,6 +325,28 @@ Content-Type: application/json
 ```json
 {
   "error": "data validation failed: field 'age' must be a number"
+}
+```
+
+- **Unknown field example (assuming schema has no `nickname`):**
+
+```json
+{
+  "phone_number": "+1234567897",
+  "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+  "data": {
+    "name": "Alice",
+    "email": "alice@example.com",
+    "nickname": "ally"
+  }
+}
+```
+
+- **Expected Response:** `400 Bad Request`
+
+```json
+{
+  "error": "data validation failed: unknown field 'nickname' is not allowed"
 }
 ```
 
@@ -323,7 +366,7 @@ Replace `{lead_id}` with the actual ID from the create response.
 - **Method:** `GET`
 - **URL:** `http://localhost:8080/api/leads`
 - **Query Parameters (optional):**
-  - `product_id`: filter leads by product ID
+  - `product_id`: filter leads that have at least one object with this product ID
   - `limit`: number of leads to return (default: 10)
   - `offset`: number of leads to skip (default: 0)
 
@@ -345,17 +388,22 @@ Examples:
 Content-Type: application/json
 ```
 
-- **Body:**
+- **Body (replace entire `objects` array; each item is validated against its product's schema):**
 
 ```json
 {
-  "data": {
-    "name": "John Updated",
-    "email": "john.updated@example.com",
-    "age": 31,
-    "phone": "+1234567891",
-    "interests": ["technology", "marketing", "sales"]
-  }
+  "objects": [
+    {
+      "product_id": "64f8b1a2e5c6d7f8a9b0c1d2",
+      "data": {
+        "name": "John Updated",
+        "email": "john.updated@example.com",
+        "age": 31,
+        "phone": "+1234567891",
+        "interests": ["technology", "marketing", "sales"]
+      }
+    }
+  ]
 }
 ```
 
@@ -375,7 +423,7 @@ Content-Type: application/json
 
 1. Create a product using request #1
 2. Copy the product ID from the response
-3. Create valid leads using request #6 (replace `product_id` with your actual product ID)
+3. Create valid leads using request #6 (include `phone_number` and your `product_id`)
 4. Test validation using requests #7 and #8
 5. List products and leads to verify data
 6. Perform update and delete operations to test full CRUD
@@ -385,7 +433,7 @@ Content-Type: application/json
 **Test Case 1: Required Field Validation**
 
 - Create a product with required fields
-- Try to create a lead missing required fields
+- Try to create a lead missing required `phone_number` or required schema fields
 - Should return 400 Bad Request
 
 **Test Case 2: Data Type Validation**
@@ -405,12 +453,33 @@ Content-Type: application/json
   "name": "Complex Product",
   "description": "Product with complex validation rules",
   "schema": {
-    "user_info": { "type": "object", "required": true },
-    "tags": { "type": "array", "required": false },
+    "user_info": {
+      "type": "object",
+      "required": true,
+      "properties": {
+        "first_name": { "type": "string", "required": true },
+        "prefs": {
+          "type": "object",
+          "required": false,
+          "schema": {
+            "theme": { "type": "string", "required": false },
+            "emails": { "type": "boolean", "required": true }
+          }
+        }
+      }
+    },
+    "tags": { "type": "array", "required": false, "items": "string" },
     "is_active": { "type": "boolean", "required": true },
-    "score": { "type": "number", "required": true }
+    "score": { "type": "number", "required": true, "minimum": 0 }
   }
 }
 ```
+
+---
+
+## gRPC
+
+- Service definitions are in `leads.proto`; generated code is under `pb/`.
+- Server listens on `localhost:50051`.
 
 
